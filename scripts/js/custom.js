@@ -50,22 +50,50 @@ function selectNonNullTag(obj, tag1, tag2) {
 }
 
 function getInitChar(str) {
-    // get ascii value of first character
-    var intchar = str.toUpperCase().charCodeAt(0);
+    // get first character as upper case
+    var char0 = str.charAt(0).toUpperCase();
 
-    // TODO: Handle acents À, ÖÄ, ...
+    // replace non ASCII
+    char0 = replaceWithAsciiChar(char0);
+
+    // get ascii value of first character
+    var intchar = char0.charCodeAt(0);
 
     // check for numbers
-    if ( (intchar >= 48) && (intchar <= 57) )
-    {
+    if ( (intchar >= 48) && (intchar <= 57) ) {
         return '0';
     }
     // check for other characters
-    if ( !((intchar >= 65) && (intchar <= 90)) )
-    {
-        return '#';
+    if ( !((intchar >= 65) && (intchar <= 90)) ) {
+        if (str.length() > 1) {
+            // consider the next character
+            return getInitChar(str.substr(1));
+        } else {
+            return '#';
+        }
     }
     return String.fromCharCode(intchar);
+}
+
+// replaceWithAsciiChar
+// Replaces a character with a ASCII conform character
+// Assume one character (no string) in upper case.
+function replaceWithAsciiChar(character) {
+    // TODO more flexible/configurable/complete solution?
+    const replaceMap =  {
+        'Á': 'A',
+        'Ä': 'A',
+        'Ā': 'A',
+        'É': 'E',
+        'İ': 'I',
+        'Ö': 'O',
+        'Ü': 'U'
+    };
+    if (character in replaceMap) {
+        return replaceMap[character];
+    } else {
+        return character;
+    }
 }
 
 // Adds audio tracks to several virtual folders
@@ -101,6 +129,7 @@ function addMultiTag(obj, chain, track, album_artist, album, is_release_complete
     addChainEnd(obj, chain, album_values, track_values, category, is_release_complete,
         chainBegin.concat(chain['album' + category]),
         chainBegin.concat(chain['track' + category]));
+}
 
 
 function addChainEnd(obj, chain, album_values, track_values, category, is_release_complete, chainBeginAlbum, chainBeginTrack){
@@ -149,7 +178,7 @@ function addChainEnd(obj, chain, album_values, track_values, category, is_releas
 // addAudio
 // overloads internal common.js/addAudio() function
 // which is calles from import.js/
-function addAudioStructuredOFF(obj) {
+function addAudioStructured(obj) {
     print('File: '+obj.location);
 
     // Gather data
@@ -207,15 +236,6 @@ function addAudioStructuredOFF(obj) {
     var number_title = track_number + " - " + track;
     var number_artist_title = track_number + " - " + artist + " - " + track;
 
-    // extract first character of artist and album
-    // TODO: better solution, to not rely on obj.location. How done in Picard?
-    /*var location = obj.location;
-    var regex = /\/([A-Z]{1})\//;
-    var found = location.match(regex);
-    var artist_first_char = "#";
-    if (found && found.length>=2){
-        artist_first_char = found[1];
-    }*/
     var init_album = getInitChar(album);
     var init_artist = getInitChar(album_artist);
 
@@ -296,12 +316,15 @@ function addAudioStructuredOFF(obj) {
            {
                 addCdsTree(obj, [chain.audio, chain.allAlbums, chain.initAlbum, chain.album]);
                 addCdsTree(obj, [chain.audio, chain.allArtists, chain.initArtist, chain.artist, chain.album]);
-                addCdsTree(obj, [chain.audio, chain.allArtists, chain.abc, chain.initArtist, chain.album]);
+                //addCdsTree(obj, [chain.audio, chain.allArtists, chain.abc, chain.initArtist, chain.album]);
+                addCdsTree(obj, [chain.audio, chain.allComposers, chain.composer, chain.album]);
            } else {
                 addCdsTree(obj, [chain.audio, chain.allAlbums, chain.initAlbum, chain.allAlbumsIncomplete, chain.album]);
                 addCdsTree(obj, [chain.audio, chain.allArtists, chain.initArtist, chain.artist, chain.allAlbumsIncomplete, chain.album]);
+                addCdsTree(obj, [chain.audio, chain.allComposers, chain.composer, chain.allAlbumsIncomplete, chain.album]);
            }
            addCdsTree(obj, [chain.audio, chain.allArtists, chain.initArtist, chain.artist, chain.allSongs]);
+           addCdsTree(obj, [chain.audio, chain.allComposers, chain.composer, chain.allSongs]);
     }
 
     addMultiTag(obj, chain, track, album_artist, album, is_release_complete, album_genre, track_genre, 'Genre');
