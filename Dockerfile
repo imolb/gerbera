@@ -4,7 +4,7 @@ RUN apk add --no-cache tini gcc g++ pkgconf make \
 	util-linux-dev sqlite-dev mariadb-connector-c-dev cmake zlib-dev fmt-dev \
 	file-dev libexif-dev curl-dev ffmpeg-dev ffmpegthumbnailer-dev \
 	libmatroska-dev libebml-dev taglib-dev pugixml-dev spdlog-dev \
-	duktape-dev libupnp-dev git bash
+	duktape-dev libupnp-dev git bash exiv2-dev
 
 WORKDIR /gerbera_build
 
@@ -21,6 +21,7 @@ RUN mkdir build && \
         -DWITH_AVCODEC=YES \
         -DWITH_FFMPEGTHUMBNAILER=YES \
         -DWITH_EXIF=YES \
+        -DWITH_EXIV2=YES \
         -DWITH_LASTFM=NO \
         -DWITH_SYSTEMD=NO \
         -DWITH_DEBUG=YES && \
@@ -29,7 +30,12 @@ RUN mkdir build && \
 FROM alpine:3.13
 RUN apk add --no-cache tini util-linux sqlite mariadb-connector-c zlib fmt \
 	file libexif curl ffmpeg-libs ffmpegthumbnailer libmatroska libebml taglib \
-	pugixml spdlog sqlite-libs libupnp duktape su-exec
+	pugixml spdlog sqlite-libs libupnp duktape su-exec exiv2
+
+# Upgrade taglib
+RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
+RUN apk update
+RUN apk upgrade taglib
 
 # Gerbera itself
 COPY --from=builder /gerbera_build/build/gerbera /bin/gerbera
