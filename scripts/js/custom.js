@@ -97,19 +97,16 @@ function replaceWithAsciiChar(character) {
 }
 
 // Adds audio tracks to several virtual folders
-// track:               String  File name to display
-// album_artist:        String  Name of the album artist
-// album:               String  Name of the album
 // release_is_complete: Boolean true for complete releases, false if not complete
 // album_values:        String  Semicolon separated list of the different categories the album belongs to
 // track_values:        String  Semicolon separated list of the different categories the track belongs to
 // category:            String  Name of the category (e.g. Genre, Mood or Grouping)
 
-function addMultiTag(obj, chain, track, album_artist, album, is_release_complete, is_classical, album_values, track_values, category) {
+function addMultiTag(obj, chain, is_release_complete, is_classical, album_values, track_values, category) {
     // Begin of chain for all sorts of categories
-    var chainBegin = [chain.audio, chain['all' + category + 's']];
+    var chainBegin = [chain.audio, chain['all' + category]];
 
-    if (category == 'Year') {
+    if (category == 'year') {
         // add tracks also directly below <DECADE> without the year
         addChainEnd(obj, chain, album_values, track_values, category, is_release_complete,
             chainBegin.concat(chain.decade),
@@ -117,23 +114,31 @@ function addMultiTag(obj, chain, track, album_artist, album, is_release_complete
 
         // add <DECADE> as additional level in hierarchy
         chainBegin = chainBegin.concat(chain.decade);
-    } else if (category == 'Genre') {
+    } else if (category == 'genre') {
         // add also below groupings
         addChainEnd(obj, chain, album_values, track_values, category, is_release_complete,
-            [chain.audio, chain.allGroupings, chain.albumGrouping, chain['all' + category + 's'], chain['album' + category]],
-            [chain.audio, chain.allGroupings, chain.trackGrouping, chain['all' + category + 's'], chain['track' + category]]);
-    } else if (category == 'Composer') {
+            [chain.audio, chain.allgrouping, chain.albumgrouping, chain['all' + category], chain[category]],
+            [chain.audio, chain.allgrouping, chain.trackgrouping, chain['all' + category], chain[category]]);
+    } else if (category == 'composer') {
         // split up into classical and non classical
         if (is_classical) {
-            chainBegin = chainBegin.concat(chain.composerClassical);
+            chainBegin = chainBegin.concat(chain.composerclassical);
         } else {
-            chainBegin = chainBegin.concat(chain.composerNonClassical);
+            chainBegin = chainBegin.concat(chain.composernonclassical);
         }
+    } else if (category == 'artist') {
+        // add sub-hierarchy with initial letter
+        chainBegin = chainBegin.concat(chain.initartist);
+    } else if (category == 'album') {
+        // add sub-hierarchy with initial letter
+        chainBegin = chainBegin.concat(chain.initalbum);
+        if (!is_release_complete) chainBegin = chainBegin.concat(chain.allalbumsincomplete);
     }
+
     // Default adding for all sorts of categories
     addChainEnd(obj, chain, album_values, track_values, category, is_release_complete,
-        chainBegin.concat(chain['album' + category]),
-        chainBegin.concat(chain['track' + category]));
+        chainBegin.concat(chain[category]),
+        chainBegin.concat(chain[category]));
 }
 
 
@@ -143,23 +148,30 @@ function addChainEnd(obj, chain, album_values, track_values, category, is_releas
         var value_list = album_values.split("; ");
         for (var idx=0; idx<value_list.length; idx++){
 
-            chain['album' + category].title = value_list[idx];
-            if (['Genre', 'Mood', 'Grouping'].contains(category)) {
-                chain['album' + category].meta[M_GENRE] = value_list[idx];
-            } else if (category == 'Composer') {
-                chain['album' + category].meta[M_COMPOSER] = value_list[idx];
+            chain[category].title = value_list[idx];
+            if (['genre', 'mood', 'grouping'].contains(category)) {
+                chain[category].meta[M_GENRE] = value_list[idx];
+            } else if (category == 'composer') {
+                chain[category].meta[M_COMPOSER] = value_list[idx];
             }
 
-            if (is_release_complete) {
-                // .../-Albums-/<ALBUM>/
-                addCdsTree(obj, chainBeginAlbum.concat(chain.allAlbums, chain.album));
-                // .../-Artists-/<ARTIST>/<ALBUM>/
-                addCdsTree(obj, chainBeginAlbum.concat(chain.allArtists, chain.artist, chain.album));
+            if (category == 'album') {
+                addCdsTree(obj, chainBeginAlbum);
+            } else if (category == 'artist') {
+                if (is_release_complete) addCdsTree(obj, chainBeginAlbum.concat(chain.album));
+                else addCdsTree(obj, chainBeginAlbum.concat(chain.allalbumsincomplete, chain.album));
             } else {
-                // .../-Albums-/-Incomplete Albums-/<ALBUM>/
-                addCdsTree(obj, chainBeginAlbum.concat(chain.allAlbums, chain.allAlbumsIncomplete, chain.album));
-                // .../-Artists-/<ARTIST>/-Incomplete Albums-/<ALBUM>/
-                addCdsTree(obj, chainBeginAlbum.concat(chain.allArtists, chain.artist, chain.allAlbumsIncomplete));
+                if (is_release_complete) {
+                    // .../-Albums-/<ALBUM>/
+                    addCdsTree(obj, chainBeginAlbum.concat(chain.allalbum, chain.album));
+                    // .../-Artists-/<ARTIST>/<ALBUM>/
+                    addCdsTree(obj, chainBeginAlbum.concat(chain.allartist, chain.artist, chain.album));
+                } else {
+                    // .../-Albums-/-Incomplete Albums-/<ALBUM>/
+                    addCdsTree(obj, chainBeginAlbum.concat(chain.allalbum, chain.allalbumsincomplete, chain.album));
+                    // .../-Artists-/<ARTIST>/-Incomplete Albums-/<ALBUM>/
+                    addCdsTree(obj, chainBeginAlbum.concat(chain.allartist, chain.artist, chain.allalbumsincomplete));
+                }
             }
         }
     }
@@ -167,18 +179,18 @@ function addChainEnd(obj, chain, album_values, track_values, category, is_releas
     if (track_values) {
         var value_list = track_values.split("; ");
         for (var idx=0; idx<value_list.length; idx++){
-            chain['track' + category].title = value_list[idx];
-            if (['Genre', 'Mood', 'Grouping'].contains(category)) {
-                chain['track' + category].meta[M_GENRE] = value_list[idx];
-            } else if (category == 'Composer') {
-                chain['track' + category].meta[M_COMPOSER] = value_list[idx];
+            chain[category].title = value_list[idx];
+            if (['genre', 'mood', 'grouping'].contains(category)) {
+                chain[category].meta[M_GENRE] = value_list[idx];
+            } else if (category == 'composer') {
+                chain[category].meta[M_COMPOSER] = value_list[idx];
             }
 
             // .../-All Songs-/
-            addCdsTree(obj, chainBeginTrack.concat(chain.allSongs));
+            addCdsTree(obj, chainBeginTrack.concat(chain.allsong));
 
             // .../-Artists-/<ARTIST>/-all Songs-/
-            addCdsTree(obj, chainBeginTrack.concat(chain.allArtists, chain.artist, chain.allSongs));
+            if (category != 'artist') addCdsTree(obj, chainBeginTrack.concat(chain.allartist, chain.artist, chain.allsong));
         }
     }
 }
@@ -263,60 +275,62 @@ function addAudioStructured(obj) {
 
     // TODO: Discuss, how to make this const available from common.js in custom.js
     const chain = {
+        // Container for structuring
         audio: { title: 'Audio', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
-        allAudio: { title: 'All Audio', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
-        allArtists: { title: '-Artists-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
-        allGenres: { title: '-Genres-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
-        allMoods: { title: '-Moods-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
-        allGroupings: { title: '-Groupings-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
-        allCategories: { title: '-Categories-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
-        allSoundtracks: { title: '-Soundtracks-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
-        allCompilations: { title: '-Compilations-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
-        allAudiobooks: { title: '-Audiobooks-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
-        allAlbums: { title: '-Albums-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
-        allAlbumsIncomplete: { title: '-Albums Incomplete-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
-        allYears: { title: '-Year-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+        allartist: { title: '-Artists-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+        allgenre: { title: '-Genres-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+        allmood: { title: '-Moods-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+        allgrouping: { title: '-Groupings-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+        allcategorie: { title: '-Categories-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+        allsoundtrack: { title: '-Soundtracks-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+        allcompilation: { title: '-Compilations-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+        allaudiobook: { title: '-Audiobooks-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+        allalbum: { title: '-Albums-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+        allyear: { title: '-Year-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+        allcomposer: { title: '-Composers-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+        allsong: { title: '-Songs-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+
+        // Container for second-level structure
         abc: { title: abcbox(artist, 6, '-'), objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
-        initAlbum: { title: init_album, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
-        initArtist: { title: init_artist, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
-        allComposers: { title: '-Composers-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
-        allSongs: { title: '-Songs-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
-        artist: { title: album_artist, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_ARTIST, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
-        album: { title: album, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_ALBUM, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
-        trackGenre: { title: {}, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_GENRE, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
-        trackMood: { title: {}, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_GENRE, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
-        trackGrouping: { title: track_grouping, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_GENRE, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
-        albumGenre: { title: {}, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_GENRE, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
-        albumMood: { title: {}, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_GENRE, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
-        albumGrouping: { title: album_grouping, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_GENRE, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
-        albumYear: { title: year, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
-        trackYear: { title: year, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
-        albumComposer: { title: {}, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_COMPOSER, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
-        trackComposer: { title: {}, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_COMPOSER, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
+        initalbum: { title: init_album, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+        initartist: { title: init_artist, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+        allalbumsincomplete: { title: '-Albums Incomplete-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+        composerclassical: { title: '-Classical-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+        composernonclassical: { title: '-Non Classical-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+
+        // Container for content with specific title
+        artist: { title: {}, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_ARTIST, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
+        album: { title: {}, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_ALBUM, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
+        genre: { title: {}, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_GENRE, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
+        mood: { title: {}, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_GENRE, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
+        grouping: { title: {}, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_GENRE, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
+        albumgrouping: { title: {}, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_GENRE, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
+        trackgrouping: { title: {}, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_GENRE, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
+        year: { title: {}, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
+        composer: { title: {}, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_COMPOSER, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
         decade: { title: decade + 's', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
-        album_artist: { title: album_artist, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_ALBUM, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
-        composerClassical: { title: '-Classical-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
-        composerNonClassical: { title: '-Non Classical-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
     };
 
+    // Set attributes for artist and album, cause these are used in all other categories
+    chain.artist.title = artist;
     chain.artist.meta[M_ARTIST] = artist;
+
+    chain.album.title = album;
     chain.album.meta[M_ARTIST] = artist;
     chain.album.meta[M_ALBUMARTIST] = album_artist;
     chain.album.meta[M_GENRE] = album_grouping;
     chain.album.meta[M_DATE] = obj.meta[M_DATE];
     chain.album.meta[M_ALBUM] = album;
-    chain.albumYear.meta[M_DATE] = year;
-    chain.trackYear.meta[M_DATE] = year;
-    //chain.decade.meta[M_DATE] = decade;
-    chain.album_artist.meta[M_ALBUMARTIST] = album_artist;
 
-    chain.trackGrouping.meta[M_GENRE] = track_grouping;
-    chain.trackGrouping.title = track_grouping;
-    chain.albumGrouping.meta[M_GENRE] = album_grouping;
-    chain.albumGrouping.title = album_grouping;
+    // trackGrouping and albumGrouping required, to have genre below groupings, but already defined values
+    chain.trackgrouping.meta[M_GENRE] = track_grouping;
+    chain.trackgrouping.title = track_grouping;
+    chain.albumgrouping.meta[M_GENRE] = album_grouping;
+    chain.albumgrouping.title = album_grouping;
 
     obj.title = track;
 
+    /*
     if (is_various_artists)
     {
         addCdsTree(obj, [chain.audio, chain.allCategories, chain.allCompilations, chain.album]);
@@ -333,20 +347,33 @@ function addAudioStructured(obj) {
            }
            addCdsTree(obj, [chain.audio, chain.allArtists, chain.initArtist, chain.artist, chain.allSongs]);
            //if (composer) addCdsTree(obj, [chain.audio, chain.allComposers, chain.composer, chain.allSongs]);
+    }*/
+
+    if (!is_various_artists) {
+        addMultiTag(obj, chain, is_release_complete, is_classical, artist, artist, 'artist');
+        addMultiTag(obj, chain, is_release_complete, is_classical, album, null, 'album');
     }
+    addMultiTag(obj, chain, is_release_complete, is_classical, album_genre, track_genre, 'genre');
+    addMultiTag(obj, chain, is_release_complete, is_classical, album_mood, track_mood, 'mood');
+    addMultiTag(obj, chain, is_release_complete, is_classical, album_grouping, track_grouping, 'grouping');
+    addMultiTag(obj, chain, is_release_complete, is_classical, composer, composer, 'composer');
 
-    addMultiTag(obj, chain, track, album_artist, album, is_release_complete, is_classical, album_genre, track_genre, 'Genre');
-    addMultiTag(obj, chain, track, album_artist, album, is_release_complete, is_classical, album_mood, track_mood, 'Mood');
-    addMultiTag(obj, chain, track, album_artist, album, is_release_complete, is_classical, album_grouping, track_grouping, 'Grouping');
-    addMultiTag(obj, chain, track, album_artist, album, is_release_complete, is_classical, composer, composer, 'Composer');
+    if (year.length == 4) addMultiTag(obj, chain, is_release_complete, is_classical, year, year, 'year');
 
-    if (year.length == 4) addMultiTag(obj, chain, track, album_artist, album, is_release_complete, is_classical, year, year, 'Year');
-
-     // Categories: Audiobooks, Soundtracks
-    if (is_audiobook)  addCdsTree(obj, [chain.audio, chain.allCategories, chain.allAudiobooks, chain.album]);
-    if (is_soundtrack) addCdsTree(obj, [chain.audio, chain.allCategories, chain.allSoundtracks, chain.album]);
+    // Categories: Audiobooks, Soundtracks, Compilations
+    if (is_various_artists) addCdsTree(obj, [chain.audio, chain.allcategorie, chain.allcompilation, chain.album]);
+    if (is_audiobook)  addCdsTree(obj, [chain.audio, chain.allcategories, chain.allaudiobooks, chain.album]);
+    if (is_soundtrack) addCdsTree(obj, [chain.audio, chain.allcategories, chain.allsoundtracks, chain.album]);
 }
 
 function addCdsTree(obj, tree) {
+    /*for (var idx = 0; idx<tree.length; idx++){
+        var title = 'undefined'
+        if (tree[idx]) {
+            title = tree[idx].title;
+        }
+        print('Tree[' + idx + '] = ' + title);
+    }*/
+
     addCdsObject(obj, addContainerTree(tree));
 }
