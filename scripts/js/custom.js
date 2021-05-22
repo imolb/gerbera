@@ -75,6 +75,7 @@ function getInitChar(str) {
     return String.fromCharCode(intchar);
 }
 
+
 // replaceWithAsciiChar
 // Replaces a character with a ASCII conform character
 // Assume one character (no string) in upper case.
@@ -93,105 +94,6 @@ function replaceWithAsciiChar(character) {
         return replaceMap[character];
     } else {
         return character;
-    }
-}
-
-// Adds audio tracks to several virtual folders
-// release_is_complete: Boolean true for complete releases, false if not complete
-// album_values:        String  Semicolon separated list of the different categories the album belongs to
-// track_values:        String  Semicolon separated list of the different categories the track belongs to
-// category:            String  Name of the category (e.g. Genre, Mood or Grouping)
-
-function addMultiTag(obj, chain, is_release_complete, is_classical, album_values, track_values, category) {
-    // Begin of chain for all sorts of categories
-    var chainBegin = [chain.audio, chain['all' + category]];
-
-    if (category == 'year') {
-        // add tracks also directly below <DECADE> without the year
-        addChainEnd(obj, chain, album_values, track_values, category, is_release_complete,
-            chainBegin.concat(chain.decade),
-            chainBegin.concat(chain.decade));
-
-        // add <DECADE> as additional level in hierarchy
-        chainBegin = chainBegin.concat(chain.decade);
-    } else if (category == 'genre') {
-        // add also below groupings
-        addChainEnd(obj, chain, album_values, track_values, category, is_release_complete,
-            [chain.audio, chain.allgrouping, chain.albumgrouping, chain['all' + category], chain[category]],
-            [chain.audio, chain.allgrouping, chain.trackgrouping, chain['all' + category], chain[category]]);
-    } else if (category == 'composer') {
-        // split up into classical and non classical
-        if (is_classical) {
-            chainBegin = chainBegin.concat(chain.composerclassical);
-        } else {
-            chainBegin = chainBegin.concat(chain.composernonclassical);
-        }
-    } else if (category == 'artist') {
-        // add sub-hierarchy with initial letter
-        chainBegin = chainBegin.concat(chain.initartist);
-    } else if (category == 'album') {
-        // add sub-hierarchy with initial letter
-        chainBegin = chainBegin.concat(chain.initalbum);
-        if (!is_release_complete) chainBegin = chainBegin.concat(chain.allalbumsincomplete);
-    }
-
-    // Default adding for all sorts of categories
-    addChainEnd(obj, chain, album_values, track_values, category, is_release_complete,
-        chainBegin.concat(chain[category]),
-        chainBegin.concat(chain[category]));
-}
-
-
-function addChainEnd(obj, chain, album_values, track_values, category, is_release_complete, chainBeginAlbum, chainBeginTrack){
-
-    if (album_values) {
-        var value_list = album_values.split("; ");
-        for (var idx=0; idx<value_list.length; idx++){
-
-            chain[category].title = value_list[idx];
-            if (['genre', 'mood', 'grouping'].contains(category)) {
-                chain[category].meta[M_GENRE] = value_list[idx];
-            } else if (category == 'composer') {
-                chain[category].meta[M_COMPOSER] = value_list[idx];
-            }
-
-            if (category == 'album') {
-                addCdsTree(obj, chainBeginAlbum);
-            } else if (category == 'artist') {
-                if (is_release_complete) addCdsTree(obj, chainBeginAlbum.concat(chain.album));
-                else addCdsTree(obj, chainBeginAlbum.concat(chain.allalbumsincomplete, chain.album));
-            } else {
-                if (is_release_complete) {
-                    // .../-Albums-/<ALBUM>/
-                    addCdsTree(obj, chainBeginAlbum.concat(chain.allalbum, chain.album));
-                    // .../-Artists-/<ARTIST>/<ALBUM>/
-                    addCdsTree(obj, chainBeginAlbum.concat(chain.allartist, chain.artist, chain.album));
-                } else {
-                    // .../-Albums-/-Incomplete Albums-/<ALBUM>/
-                    addCdsTree(obj, chainBeginAlbum.concat(chain.allalbum, chain.allalbumsincomplete, chain.album));
-                    // .../-Artists-/<ARTIST>/-Incomplete Albums-/<ALBUM>/
-                    addCdsTree(obj, chainBeginAlbum.concat(chain.allartist, chain.artist, chain.allalbumsincomplete));
-                }
-            }
-        }
-    }
-
-    if (track_values) {
-        var value_list = track_values.split("; ");
-        for (var idx=0; idx<value_list.length; idx++){
-            chain[category].title = value_list[idx];
-            if (['genre', 'mood', 'grouping'].contains(category)) {
-                chain[category].meta[M_GENRE] = value_list[idx];
-            } else if (category == 'composer') {
-                chain[category].meta[M_COMPOSER] = value_list[idx];
-            }
-
-            // .../-All Songs-/
-            addCdsTree(obj, chainBeginTrack.concat(chain.allsong));
-
-            // .../-Artists-/<ARTIST>/-all Songs-/
-            if (category != 'artist') addCdsTree(obj, chainBeginTrack.concat(chain.allartist, chain.artist, chain.allsong));
-        }
     }
 }
 
@@ -224,11 +126,8 @@ function addAudioStructured(obj) {
     var album_grouping = obj.aux['TXXX:albumgrouping'];
 
     var compilation    = obj.aux['TCMP'];
-
     var release_type   = obj.aux['TXXX:MusicBrainz Album Type'];
-
     var release_completeness = obj.aux['TXXX:releasecompleteness'];
-    var is_release_complete = (release_completeness && release_completeness == "complete");
 
     var year;
     var decade;
@@ -254,6 +153,7 @@ function addAudioStructured(obj) {
     // basic boolean information
     var is_various_artists = (album_artist == "Various Artists");
     var is_soundtrack = release_type && release_type.includes("soundtrack");
+    var is_release_complete = (release_completeness && release_completeness == "complete");
 
     var categories = new Array("audiobook", "comedy", "spokenword", "non-music", "audio drama");
     var is_audiobook = false;
@@ -270,10 +170,6 @@ function addAudioStructured(obj) {
         is_classical = true;
     }
 
-
-    // TODO: Assure, grouping is a single value
-
-    // TODO: Discuss, how to make this const available from common.js in custom.js
     const chain = {
         // Container for structuring
         audio: { title: 'Audio', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
@@ -294,6 +190,7 @@ function addAudioStructured(obj) {
         abc: { title: abcbox(artist, 6, '-'), objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
         initalbum: { title: init_album, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
         initartist: { title: init_artist, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+        initcomposer: { title: {}, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
         allalbumsincomplete: { title: '-Albums Incomplete-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
         composerclassical: { title: '-Classical-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
         composernonclassical: { title: '-Non Classical-', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
@@ -322,32 +219,14 @@ function addAudioStructured(obj) {
     chain.album.meta[M_DATE] = obj.meta[M_DATE];
     chain.album.meta[M_ALBUM] = album;
 
-    // trackGrouping and albumGrouping required, to have genre below groupings, but already defined values
+    // trackgrouping and albumgrouping required, to have genre below groupings, but already defined values
+    // grouping is expected to be a single value (not multi-value tag)
     chain.trackgrouping.meta[M_GENRE] = track_grouping;
     chain.trackgrouping.title = track_grouping;
     chain.albumgrouping.meta[M_GENRE] = album_grouping;
     chain.albumgrouping.title = album_grouping;
 
     obj.title = track;
-
-    /*
-    if (is_various_artists)
-    {
-        addCdsTree(obj, [chain.audio, chain.allCategories, chain.allCompilations, chain.album]);
-    } else {
-           if (is_release_complete) {
-                addCdsTree(obj, [chain.audio, chain.allAlbums, chain.initAlbum, chain.album]);
-                addCdsTree(obj, [chain.audio, chain.allArtists, chain.initArtist, chain.artist, chain.album]);
-                //addCdsTree(obj, [chain.audio, chain.allArtists, chain.abc, chain.initArtist, chain.album]);
-                //if (composer) addCdsTree(obj, [chain.audio, chain.allComposers, chain.composer, chain.album]);
-           } else {
-                addCdsTree(obj, [chain.audio, chain.allAlbums, chain.initAlbum, chain.allAlbumsIncomplete, chain.album]);
-                addCdsTree(obj, [chain.audio, chain.allArtists, chain.initArtist, chain.artist, chain.allAlbumsIncomplete, chain.album]);
-                //if (composer) addCdsTree(obj, [chain.audio, chain.allComposers, chain.composer, chain.allAlbumsIncomplete, chain.album]);
-           }
-           addCdsTree(obj, [chain.audio, chain.allArtists, chain.initArtist, chain.artist, chain.allSongs]);
-           //if (composer) addCdsTree(obj, [chain.audio, chain.allComposers, chain.composer, chain.allSongs]);
-    }*/
 
     if (!is_various_artists) {
         addMultiTag(obj, chain, is_release_complete, is_classical, artist, artist, 'artist');
@@ -361,9 +240,115 @@ function addAudioStructured(obj) {
     if (year.length == 4) addMultiTag(obj, chain, is_release_complete, is_classical, year, year, 'year');
 
     // Categories: Audiobooks, Soundtracks, Compilations
-    if (is_various_artists) addCdsTree(obj, [chain.audio, chain.allcategorie, chain.allcompilation, chain.album]);
-    if (is_audiobook)  addCdsTree(obj, [chain.audio, chain.allcategories, chain.allaudiobooks, chain.album]);
-    if (is_soundtrack) addCdsTree(obj, [chain.audio, chain.allcategories, chain.allsoundtracks, chain.album]);
+    if (is_various_artists) {
+        if (is_release_complete) addCdsTree(obj, [chain.audio, chain.allcategorie, chain.allcompilation, chain.album]);
+        else addCdsTree(obj, [chain.audio, chain.allcategorie, chain.allcompilation, chain.allalbumsincomplete, chain.album]);
+    }
+    if (is_audiobook)       addCdsTree(obj, [chain.audio, chain.allcategorie, chain.allaudiobook, chain.album]);
+    if (is_soundtrack)      addCdsTree(obj, [chain.audio, chain.allcategorie, chain.allsoundtrack, chain.album]);
+}
+
+// Adds audio tracks to several virtual folders
+// is_release_complete: Boolean true for complete releases, false if not complete
+// is_classical:        Boolean
+// album_values:        String  Semicolon separated list of the different categories the album belongs to
+// track_values:        String  Semicolon separated list of the different categories the track belongs to
+// category:            String  Name of the category (e.g. Genre, Mood or Grouping)
+function addMultiTag(obj, chain, is_release_complete, is_classical, album_values, track_values, category) {
+    // Begin of chain for all sorts of categories
+    var chainBegin = [chain.audio, chain['all' + category]];
+
+    if (category == 'year') {
+        // add tracks also directly below <DECADE> without the year
+        addChainEnd(obj, chain, album_values, track_values, category, is_release_complete,
+            chainBegin.concat(chain.decade),
+            chainBegin.concat(chain.decade));
+
+        // add <DECADE> as additional level in hierarchy
+        chainBegin = chainBegin.concat(chain.decade);
+    } else if (category == 'genre') {
+        // add also below groupings
+        addChainEnd(obj, chain, album_values, track_values, category, is_release_complete,
+            [chain.audio, chain.allgrouping, chain.albumgrouping, chain['all' + category], chain[category]],
+            [chain.audio, chain.allgrouping, chain.trackgrouping, chain['all' + category], chain[category]]);
+    } else if (category == 'composer') {
+        // split up into classical and non classical
+        if (is_classical) {
+            chainBegin = chainBegin.concat(chain.composerclassical);
+        } else {
+            chainBegin = chainBegin.concat(chain.composernonclassical, chain.initcomposer);
+        }
+    } else if (category == 'artist') {
+        // add sub-hierarchy with initial letter
+        chainBegin = chainBegin.concat(chain.initartist);
+    } else if (category == 'album') {
+        // add sub-hierarchy with initial letter
+        chainBegin = chainBegin.concat(chain.initalbum);
+        if (!is_release_complete) chainBegin = chainBegin.concat(chain.allalbumsincomplete);
+    }
+
+    // Default adding for all sorts of categories
+    addChainEnd(obj, chain, album_values, track_values, category, is_release_complete,
+        chainBegin.concat(chain[category]),
+        chainBegin.concat(chain[category]));
+}
+
+
+function addChainEnd(obj, chain, album_values, track_values, category, is_release_complete, chainBeginAlbum, chainBeginTrack){
+
+    if (album_values) {
+        var value_list = album_values.split("; ");
+        for (var idx=0; idx<value_list.length; idx++){
+
+            chain[category].title = value_list[idx];
+            if (['genre', 'mood', 'grouping'].contains(category)) {
+                chain[category].meta[M_GENRE] = value_list[idx];
+            } else if (category == 'composer') {
+                chain[category].meta[M_COMPOSER] = value_list[idx];
+                chain.initcomposer.title = getInitChar(value_list[idx]);
+            } else if (category == 'year') {
+                chain[category].meta[M_DATE] = obj.meta[M_DATE];
+            }
+
+            if (category == 'album') {
+                addCdsTree(obj, chainBeginAlbum);
+            } else if (category == 'artist') {
+                if (is_release_complete) addCdsTree(obj, chainBeginAlbum.concat(chain.album));
+                else addCdsTree(obj, chainBeginAlbum.concat(chain.allalbumsincomplete, chain.album));
+            } else {
+                if (is_release_complete) {
+                    // .../-Albums-/<ALBUM>/
+                    addCdsTree(obj, chainBeginAlbum.concat(chain.allalbum, chain.album));
+                    // .../-Artists-/<ARTIST>/<ALBUM>/
+                    addCdsTree(obj, chainBeginAlbum.concat(chain.allartist, chain.artist, chain.album));
+                } else {
+                    // .../-Albums-/-Incomplete Albums-/<ALBUM>/
+                    addCdsTree(obj, chainBeginAlbum.concat(chain.allalbum, chain.allalbumsincomplete, chain.album));
+                    // .../-Artists-/<ARTIST>/-Incomplete Albums-/<ALBUM>/
+                    addCdsTree(obj, chainBeginAlbum.concat(chain.allartist, chain.artist, chain.allalbumsincomplete));
+                }
+            }
+        }
+    }
+
+    if (track_values) {
+        var value_list = track_values.split("; ");
+        for (var idx=0; idx<value_list.length; idx++){
+            chain[category].title = value_list[idx];
+            if (['genre', 'mood', 'grouping'].contains(category)) {
+                chain[category].meta[M_GENRE] = value_list[idx];
+            } else if (category == 'composer') {
+                chain[category].meta[M_COMPOSER] = value_list[idx];
+                chain.initcomposer.title = getInitChar(value_list[idx]);
+            }
+
+            // .../-All Songs-/
+            addCdsTree(obj, chainBeginTrack.concat(chain.allsong));
+
+            // .../-Artists-/<ARTIST>/-all Songs-/
+            if (category != 'artist') addCdsTree(obj, chainBeginTrack.concat(chain.allartist, chain.artist, chain.allsong));
+        }
+    }
 }
 
 function addCdsTree(obj, tree) {
