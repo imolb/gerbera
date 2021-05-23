@@ -20,6 +20,8 @@
   $Id$
 */
 
+var CUSTOMDEBUG = false;
+
 Array.prototype.contains = function(obj) {
     var i = this.length;
     while (i--) {
@@ -50,14 +52,19 @@ function selectNonNullTag(obj, tag1, tag2) {
 }
 
 function getInitChar(str) {
+    if (CUSTOMDEBUG) print('getInitChar() of ' + str);
+
     // get first character as upper case
     var char0 = str.charAt(0).toUpperCase();
+    if (CUSTOMDEBUG) print('char0 ' + char0);
 
     // replace non ASCII
     char0 = replaceWithAsciiChar(char0);
+    if (CUSTOMDEBUG) print('char0 ASCII' + char0);
 
     // get ascii value of first character
     var intchar = char0.charCodeAt(0);
+    if (CUSTOMDEBUG) print('intchar0 ASCII' + intchar);
 
     // check for numbers
     if ( (intchar >= 48) && (intchar <= 57) ) {
@@ -65,7 +72,7 @@ function getInitChar(str) {
     }
     // check for other characters
     if ( !((intchar >= 65) && (intchar <= 90)) ) {
-        if (str.length() > 1) {
+        if (str.length > 1) {
             // consider the next character
             return getInitChar(str.substr(1));
         } else {
@@ -129,6 +136,8 @@ function addAudioStructured(obj) {
     var release_type   = obj.aux['TXXX:MusicBrainz Album Type'];
     var release_completeness = obj.aux['TXXX:releasecompleteness'];
 
+    if (CUSTOMDEBUG) print('TAGs processed');
+
     var year;
     var decade;
     if (release_date) {
@@ -143,18 +152,22 @@ function addAudioStructured(obj) {
         decade = "Unknown";
     }
 
+    if (CUSTOMDEBUG) print('TAG Details 1');
     // in classical musics, the album_artist also contains the performes after the semicolon. Remove these
     var album_artist_values = album_artist.split('; ');
     album_artist = album_artist_values[0];
 
+    if (CUSTOMDEBUG) print('TAG Details 2');
     var init_album = getInitChar(album);
     var init_artist = getInitChar(album_artist);
 
     // basic boolean information
+    if (CUSTOMDEBUG) print('TAG Details 3');
     var is_various_artists = (album_artist == "Various Artists");
     var is_soundtrack = release_type && release_type.includes("soundtrack");
     var is_release_complete = (release_completeness && release_completeness == "complete");
 
+    if (CUSTOMDEBUG) print('TAG Details 4');
     var categories = new Array("audiobook", "comedy", "spokenword", "non-music", "audio drama");
     var is_audiobook = false;
     for (var idx = 0; idx<categories.length; idx++){
@@ -164,11 +177,15 @@ function addAudioStructured(obj) {
             break;
         }
     }
+
+    if (CUSTOMDEBUG) print('TAG Details 5');
     var is_classical = false;
-    if (album_grouping.includes('Classical') || album_genre.includes('Classical') ||
-        track_grouping.includes('Classical') || track_genre.includes('Classical')) {
+    if (album_grouping && (album_grouping.includes('Classical') || album_genre.includes('Classical')) ||
+        track_grouping && (track_grouping.includes('Classical') || track_genre.includes('Classical'))) {
         is_classical = true;
     }
+
+    if (CUSTOMDEBUG) print('booleans defined');
 
     const chain = {
         // Container for structuring
@@ -255,6 +272,13 @@ function addAudioStructured(obj) {
 // track_values:        String  Semicolon separated list of the different categories the track belongs to
 // category:            String  Name of the category (e.g. Genre, Mood or Grouping)
 function addMultiTag(obj, chain, is_release_complete, is_classical, album_values, track_values, category) {
+    if (CUSTOMDEBUG) {
+        print('addMultiTag(): ' + obj.title);
+        print('album_values: ' + album_values);
+        print('track_values: ' + track_values);
+        print('category: ' + category);
+    }
+
     // Begin of chain for all sorts of categories
     var chainBegin = [chain.audio, chain['all' + category]];
 
@@ -352,13 +376,15 @@ function addChainEnd(obj, chain, album_values, track_values, category, is_releas
 }
 
 function addCdsTree(obj, tree) {
-    /*for (var idx = 0; idx<tree.length; idx++){
-        var title = 'undefined'
-        if (tree[idx]) {
-            title = tree[idx].title;
+    if (CUSTOMDEBUG) {
+        for (var idx = 0; idx<tree.length; idx++){
+            var title = 'undefined'
+            if (tree[idx]) {
+                title = tree[idx].title;
+            }
+            print('Tree[' + idx + '] = ' + title);
         }
-        print('Tree[' + idx + '] = ' + title);
-    }*/
+    }
 
     addCdsObject(obj, addContainerTree(tree));
 }
