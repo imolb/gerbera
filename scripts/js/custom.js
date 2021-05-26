@@ -20,7 +20,7 @@
   $Id$
 */
 
-var CUSTOMDEBUG = false;
+var CUSTOMDEBUG = true;
 
 Array.prototype.contains = function(obj) {
     var i = this.length;
@@ -138,6 +138,9 @@ function addAudioStructured(obj) {
 
     if (CUSTOMDEBUG) print('TAGs processed');
 
+    if (!track_grouping) track_grouping = 'Unknown';
+    if (!album_grouping) album_grouping = 'Unknown';
+
     var year;
     var decade;
     if (release_date) {
@@ -150,6 +153,12 @@ function addAudioStructured(obj) {
     } else {
         year = "Unknown";
         decade = "Unknown";
+    }
+
+    if (CUSTOMDEBUG) {
+        print('Arist: ' + artist);
+        print('Albumartist: ' + album_artist);
+        print('Track: ' + track);
     }
 
     if (CUSTOMDEBUG) print('TAG Details 1');
@@ -180,8 +189,8 @@ function addAudioStructured(obj) {
 
     if (CUSTOMDEBUG) print('TAG Details 5');
     var is_classical = false;
-    if (album_grouping && (album_grouping.includes('Classical') || album_genre.includes('Classical')) ||
-        track_grouping && (track_grouping.includes('Classical') || track_genre.includes('Classical'))) {
+    if ((album_grouping && album_grouping.includes('Classical')) || (album_genre && album_genre.includes('Classical')) ||
+        (track_grouping && track_grouping.includes('Classical')) || (track_genre && track_genre.includes('Classical'))) {
         is_classical = true;
     }
 
