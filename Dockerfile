@@ -4,7 +4,8 @@ RUN apk add --no-cache tini gcc g++ pkgconf make \
 	util-linux-dev sqlite-dev mariadb-connector-c-dev cmake zlib-dev fmt-dev \
 	file-dev libexif-dev curl-dev ffmpeg-dev ffmpegthumbnailer-dev \
 	libmatroska-dev libebml-dev taglib-dev pugixml-dev spdlog-dev \
-	duktape-dev libupnp-dev git bash
+	duktape-dev libupnp-dev git bash \
+	build-base e2fsprogs-dev exiv2-dev gnu-libiconv-dev inotify-tools-dev libexif-dev libnpupnp-dev gtest-dev gmock
 
 WORKDIR /gerbera_build
 
@@ -13,6 +14,7 @@ RUN mkdir build && \
     cd build && \
     cmake .. \
         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        -DWITH_NPUPNP=YES \
         -DWITH_MAGIC=YES \
         -DWITH_MYSQL=YES \
         -DWITH_CURL=YES \
