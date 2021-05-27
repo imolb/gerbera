@@ -20,7 +20,7 @@
   $Id$
 */
 
-var CUSTOMDEBUG = true;
+var CUSTOMDEBUG = false;
 
 Array.prototype.contains = function(obj) {
     var i = this.length;
@@ -140,6 +140,7 @@ function addAudioStructured(obj) {
 
     if (!track_grouping) track_grouping = 'Unknown';
     if (!album_grouping) album_grouping = 'Unknown';
+    if (!album)          album          = 'Unknown';
 
     var year;
     var decade;
