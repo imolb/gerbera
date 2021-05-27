@@ -135,6 +135,7 @@ function addAudioStructured(obj) {
     var compilation    = obj.aux['TCMP'];
     var release_type   = obj.aux['TXXX:MusicBrainz Album Type'];
     var release_completeness = obj.aux['TXXX:releasecompleteness'];
+    var series         = obj.aux['TXXX:releasegroupseries'];
 
     if (CUSTOMDEBUG) print('TAGs processed');
 
@@ -233,6 +234,7 @@ function addAudioStructured(obj) {
         year: { title: {}, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
         composer: { title: {}, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER_MUSIC_COMPOSER, meta: {}, res: obj.res, aux: obj.aux, refID: obj.id },
         decade: { title: decade + 's', objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
+        series: { title: series, objectType: OBJECT_TYPE_CONTAINER, upnpclass: UPNP_CLASS_CONTAINER },
     };
 
     // Set attributes for artist and album, cause these are used in all other categories
@@ -268,8 +270,17 @@ function addAudioStructured(obj) {
 
     // Categories: Audiobooks, Soundtracks, Compilations
     if (is_various_artists) {
-        if (is_release_complete) addCdsTree(obj, [chain.audio, chain.allcategorie, chain.allcompilation, chain.album]);
-        else addCdsTree(obj, [chain.audio, chain.allcategorie, chain.allcompilation, chain.allalbumsincomplete, chain.album]);
+        var compilationChain = [chain.audio, chain.allcategorie, chain.allcompilation];
+        if (!is_release_complete) compilationChain = compilationChain.concat(chain.allalbumsincomplete);
+        if (series) {
+            var value_list = series.split("; ");
+            for (var idx=0; idx<value_list.length; idx++){
+                chain.series.title = value_list[idx];
+                addCdsTree(obj, compilationChain.concat(chain.series, chain.album));
+            }
+        } else {
+            addCdsTree(obj, compilationChain.concat(chain.album));
+        }
     }
     if (is_audiobook)       addCdsTree(obj, [chain.audio, chain.allcategorie, chain.allaudiobook, chain.album]);
     if (is_soundtrack)      addCdsTree(obj, [chain.audio, chain.allcategorie, chain.allsoundtrack, chain.album]);
