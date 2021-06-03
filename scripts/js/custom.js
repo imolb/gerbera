@@ -269,7 +269,7 @@ function addAudioStructured(obj) {
     if (year.length == 4) addMultiTag(obj, chain, is_release_complete, is_classical, year, year, 'year');
 
     // Categories: Audiobooks, Soundtracks, Compilations
-    if (is_various_artists) {
+    if (is_various_artists && !is_soundtrack) {
         var compilationChain = [chain.audio, chain.allcategorie, chain.allcompilation];
         if (!is_release_complete) compilationChain = compilationChain.concat(chain.allalbumsincomplete);
         if (series) {
@@ -282,7 +282,17 @@ function addAudioStructured(obj) {
             addCdsTree(obj, compilationChain.concat(chain.album));
         }
     }
-    if (is_audiobook)       addCdsTree(obj, [chain.audio, chain.allcategorie, chain.allaudiobook, chain.album]);
+    if (is_audiobook) {
+        if (series) {
+            var value_list = series.split("; ");
+            for (var idx=0; idx<value_list.length; idx++){
+                chain.series.title = value_list[idx];
+                addCdsTree(obj, chain.audio, chain.allcategorie, chain.allaudiobook, chain.series, chain.album]);
+            }
+        } else {
+            addCdsTree(obj, [chain.audio, chain.allcategorie, chain.allaudiobook, chain.album]);
+        }
+    }
     if (is_soundtrack)      addCdsTree(obj, [chain.audio, chain.allcategorie, chain.allsoundtrack, chain.album]);
 }
 
