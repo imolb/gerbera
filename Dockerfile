@@ -1,11 +1,10 @@
-FROM alpine:3.13 AS builder
+FROM alpine:edge AS builder
 
 RUN apk add --no-cache tini gcc g++ pkgconf make \
 	util-linux-dev sqlite-dev mariadb-connector-c-dev cmake zlib-dev fmt-dev \
 	file-dev libexif-dev curl-dev ffmpeg-dev ffmpegthumbnailer-dev \
 	libmatroska-dev libebml-dev taglib-dev pugixml-dev spdlog-dev \
-	duktape-dev libupnp-dev git bash \
-	build-base e2fsprogs-dev exiv2-dev gnu-libiconv-dev inotify-tools-dev libexif-dev libnpupnp-dev gtest-dev gmock
+	duktape-dev libupnp-dev git bash
 
 WORKDIR /gerbera_build
 
@@ -28,7 +27,7 @@ RUN mkdir build && \
         -DWITH_DEBUG=YES && \
     make -j$(nproc)
 
-FROM alpine:3.13
+FROM alpine:edge
 RUN apk add --no-cache tini util-linux sqlite mariadb-connector-c zlib fmt \
 	file libexif curl ffmpeg-libs ffmpegthumbnailer libmatroska libebml taglib \
 	pugixml spdlog sqlite-libs libupnp duktape su-exec
