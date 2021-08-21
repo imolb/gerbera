@@ -287,7 +287,7 @@ function addAudioStructured(obj) {
             var value_list = series.split("; ");
             for (var idx=0; idx<value_list.length; idx++){
                 chain.series.title = value_list[idx];
-                addCdsTree(obj, chain.audio, chain.allcategorie, chain.allaudiobook, chain.series, chain.album]);
+                addCdsTree(obj, [chain.audio, chain.allcategorie, chain.allaudiobook, chain.series, chain.album]);
             }
         } else {
             addCdsTree(obj, [chain.audio, chain.allcategorie, chain.allaudiobook, chain.album]);
